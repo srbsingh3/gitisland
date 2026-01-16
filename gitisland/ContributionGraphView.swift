@@ -12,48 +12,46 @@ struct ContributionGraphView: View {
     @State private var hoveredDay: ContributionDay?
     @State private var tooltipPosition: CGPoint = .zero
 
-    private let squareSize: CGFloat = 10
-    private let squareSpacing: CGFloat = 3
+    private let squareSize: CGFloat = 11
+    private let squareSpacing: CGFloat = 3.5
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Contribution grid
-            HStack(alignment: .top, spacing: squareSpacing) {
-                ForEach(Array(data.weeks.enumerated()), id: \.offset) { weekIndex, week in
-                    VStack(spacing: squareSpacing) {
-                        ForEach(Array(week.days.enumerated()), id: \.offset) { dayIndex, day in
-                            contributionSquare(for: day)
-                        }
+        HStack(alignment: .top, spacing: squareSpacing) {
+            ForEach(Array(data.weeks.enumerated()), id: \.offset) { weekIndex, week in
+                VStack(spacing: squareSpacing) {
+                    ForEach(Array(week.days.enumerated()), id: \.offset) { dayIndex, day in
+                        contributionSquare(for: day)
                     }
                 }
             }
-            .overlay(alignment: .topLeading) {
-                if let day = hoveredDay {
-                    tooltipView(for: day)
-                        .position(tooltipPosition)
-                }
+        }
+        .overlay(alignment: .topLeading) {
+            if let day = hoveredDay {
+                tooltipView(for: day)
+                    .position(tooltipPosition)
             }
         }
-        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
     private func contributionSquare(for day: ContributionDay) -> some View {
-        Rectangle()
+        RoundedRectangle(cornerRadius: 2.5)
             .fill(Color(hex: day.color))
             .frame(width: squareSize, height: squareSize)
-            .cornerRadius(2)
             .overlay(
-                RoundedRectangle(cornerRadius: 2)
-                    .stroke(Color.white.opacity(0.1), lineWidth: hoveredDay?.id == day.id ? 1 : 0)
+                RoundedRectangle(cornerRadius: 2.5)
+                    .strokeBorder(Color.white.opacity(0.15), lineWidth: hoveredDay?.id == day.id ? 1.5 : 0)
             )
+            .scaleEffect(hoveredDay?.id == day.id ? 1.1 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: hoveredDay?.id == day.id)
             .onContinuousHover { phase in
                 switch phase {
                 case .active(let location):
                     hoveredDay = day
                     tooltipPosition = CGPoint(
-                        x: location.x + 15,
-                        y: location.y - 10
+                        x: location.x + 18,
+                        y: location.y - 8
                     )
                 case .ended:
                     hoveredDay = nil
@@ -63,24 +61,31 @@ struct ContributionGraphView: View {
 
     @ViewBuilder
     private func tooltipView(for day: ContributionDay) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 3) {
             Text("\(day.count) contribution\(day.count == 1 ? "" : "s")")
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.white)
 
             Text(formatDate(day.date))
                 .font(.system(size: 9, weight: .regular))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(.white.opacity(0.65))
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
         .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color(white: 0.15))
-                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+            RoundedRectangle(cornerRadius: 7)
+                .fill(Color(white: 0.12))
+                .shadow(color: .black.opacity(0.4), radius: 8, x: 0, y: 3)
         )
-        .transition(.opacity.combined(with: .scale(scale: 0.9)))
-        .animation(.spring(response: 0.2, dampingFraction: 0.8), value: hoveredDay?.id)
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .transition(.asymmetric(
+            insertion: .scale(scale: 0.92).combined(with: .opacity),
+            removal: .opacity
+        ))
+        .animation(.spring(response: 0.25, dampingFraction: 0.75), value: hoveredDay?.id)
     }
 
     private func formatDate(_ date: Date) -> String {

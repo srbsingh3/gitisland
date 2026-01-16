@@ -27,7 +27,7 @@ class NotchViewModel: ObservableObject {
     var windowHeight: CGFloat { geometry.windowHeight }
 
     var openedSize: CGSize {
-        CGSize(width: 280, height: 180)
+        CGSize(width: 400, height: 160)
     }
 
     private var cancellables = Set<AnyCancellable>()

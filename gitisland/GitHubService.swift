@@ -28,10 +28,7 @@ class GitHubService: ObservableObject {
         isLoading = true
         error = nil
 
-        // Simulate network delay
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-
-        // Generate mock data
+        // Generate mock data immediately
         contributionData = generateMockData(username: username)
         isLoading = false
     }
@@ -43,8 +40,8 @@ class GitHubService: ObservableObject {
         var weeks: [ContributionWeek] = []
         var totalContributions = 0
 
-        // Generate 13 weeks of data (3 months)
-        for weekOffset in (0..<13).reversed() {
+        // Generate 22 weeks of data (5 months)
+        for weekOffset in (0..<22).reversed() {
             var days: [ContributionDay] = []
 
             for dayOffset in 0..<7 {

@@ -68,10 +68,10 @@ struct NotchView: View {
                     .padding(
                         .horizontal,
                         viewModel.status == .opened
-                            ? cornerRadiusInsets.opened.top
+                            ? 12
                             : cornerRadiusInsets.closed.bottom
                     )
-                    .padding([.horizontal, .bottom], viewModel.status == .opened ? 12 : 0)
+                    .padding(.bottom, viewModel.status == .opened ? 16 : 0)
                     .background(.black)
                     .clipShape(currentNotchShape)
                     .overlay(alignment: .top) {
@@ -118,32 +118,18 @@ struct NotchView: View {
 
     @ViewBuilder
     private var notchLayout: some View {
-        VStack(alignment: .center, spacing: 12) {
-            // Header row - keep structure consistent for smooth animation
+        VStack(alignment: .center, spacing: 0) {
+            // Header row - always present, maintains consistent structure
             HStack(spacing: 8) {
-                // GitHub icon - always in layout, only visible when opened
-                Image("github-icon")
-                    .resizable()
-                    .renderingMode(.template)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 14, height: 14)
-                    .foregroundColor(.white)
-                    .opacity(viewModel.status == .opened ? 1 : 0)
-                    .padding(.leading, 8)
-
                 Spacer()
             }
             .frame(height: max(24, closedNotchSize.height))
             .frame(width: viewModel.status == .opened ? notchSize.width - 24 : closedNotchSize.width - 20)
 
-            // Content when opened
+            // Main content - only when opened
             if viewModel.status == .opened {
-                VStack(spacing: 16) {
-                    if githubService.isLoading {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(0.8)
-                    } else if let error = githubService.error {
+                VStack(spacing: 0) {
+                    if let error = githubService.error {
                         VStack(spacing: 8) {
                             Text("Failed to load contributions")
                                 .font(.system(size: 12, weight: .medium))
@@ -154,12 +140,10 @@ struct NotchView: View {
                                 .foregroundColor(.white.opacity(0.5))
                                 .multilineTextAlignment(.center)
                         }
+                        .padding(.top, 8)
                     } else if let contributionData = githubService.contributionData {
                         ContributionGraphView(data: contributionData)
-                    } else {
-                        Text("Opening GitHub contributions...")
-                            .font(.system(size: 12, weight: .regular))
-                            .foregroundColor(.white.opacity(0.6))
+                            .padding(.top, 8)
                     }
                 }
                 .frame(width: notchSize.width - 24)
