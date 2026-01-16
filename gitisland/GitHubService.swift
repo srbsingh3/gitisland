@@ -28,19 +28,137 @@ class GitHubService: ObservableObject {
         isLoading = true
         error = nil
 
-        // Generate mock data immediately
-        contributionData = generateMockData(username: username)
-        isLoading = false
+        // Check if we have a token, otherwise use mock data
+        guard let token = getGitHubToken() else {
+            // Fallback to mock data if no token
+            contributionData = generateMockData(username: username)
+            isLoading = false
+            return
+        }
+
+        let query = """
+        query($userName:String!) {
+          user(login: $userName){
+            contributionsCollection {
+              contributionCalendar {
+                totalContributions
+                weeks {
+                  contributionDays {
+                    contributionCount
+                    date
+                    contributionLevel
+                  }
+                }
+              }
+            }
+          }
+        }
+        """
+
+        let body: [String: Any] = [
+            "query": query,
+            "variables": ["userName": username]
+        ]
+
+        guard let url = URL(string: "https://api.github.com/graphql") else {
+            error = .invalidURL
+            isLoading = false
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode) else {
+                error = .invalidResponse
+                isLoading = false
+                return
+            }
+
+            contributionData = try parseContributionData(data, username: username)
+            isLoading = false
+        } catch let decodingError as DecodingError {
+            error = .decodingError(decodingError)
+            isLoading = false
+        } catch {
+            self.error = .networkError(error)
+            isLoading = false
+        }
     }
 
     private func generateMockData(username: String) -> ContributionData {
+        // Real contribution data fetched from https://github.com/srbsingh3
+        // Last 154 days (22 weeks), scraped on 2026-01-17
         let calendar = Calendar.current
-        let today = Date()
+
+        // Actual contribution levels from GitHub (0-4 scale)
+        // Complete data for last 154 days - 50 days with contributions
+        let activityDays: [String: Int] = [
+            "2025-08-24": 4,
+            "2025-08-31": 1,
+            "2025-09-06": 2,
+            "2025-09-07": 1,
+            "2025-09-22": 1,
+            "2025-11-02": 1,
+            "2025-11-03": 1,
+            "2025-11-04": 1,
+            "2025-11-05": 1,
+            "2025-11-11": 1,
+            "2025-11-12": 1,
+            "2025-11-13": 4,
+            "2025-11-14": 1,
+            "2025-11-15": 1,
+            "2025-11-16": 1,
+            "2025-11-17": 1,
+            "2025-11-18": 1,
+            "2025-11-19": 1,
+            "2025-11-22": 1,
+            "2025-11-25": 1,
+            "2025-11-28": 3,
+            "2025-11-29": 1,
+            "2025-11-30": 3,
+            "2025-12-02": 2,
+            "2025-12-21": 2,
+            "2025-12-22": 2,
+            "2025-12-23": 2,
+            "2025-12-24": 1,
+            "2025-12-25": 3,
+            "2025-12-26": 3,
+            "2025-12-27": 3,
+            "2025-12-28": 1,
+            "2025-12-29": 1,
+            "2025-12-31": 1,
+            "2026-01-01": 2,
+            "2026-01-02": 2,
+            "2026-01-03": 1,
+            "2026-01-04": 3,
+            "2026-01-05": 2,
+            "2026-01-06": 2,
+            "2026-01-07": 4,
+            "2026-01-08": 4,
+            "2026-01-09": 3,
+            "2026-01-10": 2,
+            "2026-01-11": 1,
+            "2026-01-12": 1,
+            "2026-01-13": 1,
+            "2026-01-14": 1,
+            "2026-01-15": 3,
+            "2026-01-16": 3,
+        ]
 
         var weeks: [ContributionWeek] = []
         var totalContributions = 0
+        let today = Date()
 
-        // Generate 22 weeks of data (5 months)
+        // Generate 22 weeks (5 months) of data
         for weekOffset in (0..<22).reversed() {
             var days: [ContributionDay] = []
 
@@ -48,39 +166,22 @@ class GitHubService: ObservableObject {
                 let dayIndex = weekOffset * 7 + dayOffset
                 guard let date = calendar.date(byAdding: .day, value: -dayIndex, to: today) else { continue }
 
-                // Create varied contribution patterns
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd"
+                let dateString = dateFormatter.string(from: date)
+
+                // Get contribution level for this date
+                let level = activityDays[dateString] ?? 0
+
+                // Estimate count from level (GitHub's 0-4 scale)
                 let count: Int
-                let level: Int
-
-                // Add some randomness but with patterns
-                let isWeekend = calendar.component(.weekday, from: date) == 1 || calendar.component(.weekday, from: date) == 7
-                let weekNumber = weekOffset % 4
-
-                if isWeekend {
-                    // Lighter activity on weekends
-                    count = Int.random(in: 0...3)
-                } else {
-                    // More activity during the week
-                    switch weekNumber {
-                    case 0: count = Int.random(in: 5...15) // High activity week
-                    case 1: count = Int.random(in: 2...8)  // Medium activity week
-                    case 2: count = Int.random(in: 0...4)  // Low activity week
-                    case 3: count = Int.random(in: 1...6)  // Medium-low activity week
-                    default: count = 0
-                    }
-                }
-
-                // Determine level based on count
-                if count == 0 {
-                    level = 0
-                } else if count <= 3 {
-                    level = 1
-                } else if count <= 6 {
-                    level = 2
-                } else if count <= 10 {
-                    level = 3
-                } else {
-                    level = 4
+                switch level {
+                case 0: count = 0
+                case 1: count = 3
+                case 2: count = 6
+                case 3: count = 10
+                case 4: count = 15
+                default: count = 0
                 }
 
                 totalContributions += count
@@ -93,7 +194,7 @@ class GitHubService: ObservableObject {
         return ContributionData(weeks: weeks, totalContributions: totalContributions, username: username)
     }
 
-    private func parseContributionData(_ data: Data) throws -> ContributionData {
+    private func parseContributionData(_ data: Data, username: String) throws -> ContributionData {
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         guard let dataDict = json?["data"] as? [String: Any],
               let user = dataDict["user"] as? [String: Any],
@@ -106,7 +207,10 @@ class GitHubService: ObservableObject {
 
         let dateFormatter = ISO8601DateFormatter()
 
-        let weeks = weeksArray.map { weekDict -> ContributionWeek in
+        // Only take the last 22 weeks (5 months) to match our design
+        let recentWeeks = weeksArray.suffix(22)
+
+        let weeks = recentWeeks.map { weekDict -> ContributionWeek in
             guard let daysArray = weekDict["contributionDays"] as? [[String: Any]] else {
                 return ContributionWeek(days: [])
             }
@@ -126,8 +230,7 @@ class GitHubService: ObservableObject {
             return ContributionWeek(days: days)
         }
 
-        // Get username from somewhere - for now use a default
-        return ContributionData(weeks: weeks, totalContributions: totalContributions, username: "GitHub User")
+        return ContributionData(weeks: Array(weeks), totalContributions: totalContributions, username: username)
     }
 
     private func contributionLevelToInt(_ level: String) -> Int {

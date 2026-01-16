@@ -16,22 +16,59 @@ struct ContributionGraphView: View {
     private let squareSpacing: CGFloat = 3.5
 
     var body: some View {
-        HStack(alignment: .top, spacing: squareSpacing) {
-            ForEach(Array(data.weeks.enumerated()), id: \.offset) { weekIndex, week in
-                VStack(spacing: squareSpacing) {
-                    ForEach(Array(week.days.enumerated()), id: \.offset) { dayIndex, day in
-                        contributionSquare(for: day)
+        VStack(alignment: .center, spacing: 8) {
+            // Contribution grid
+            HStack(alignment: .top, spacing: squareSpacing) {
+                ForEach(Array(data.weeks.reversed().enumerated()), id: \.offset) { weekIndex, week in
+                    VStack(spacing: squareSpacing) {
+                        ForEach(Array(week.days.enumerated()), id: \.offset) { dayIndex, day in
+                            contributionSquare(for: day)
+                        }
+                    }
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if let day = hoveredDay {
+                    tooltipView(for: day)
+                        .position(tooltipPosition)
+                }
+            }
+
+            // Month labels
+            monthLabels
+                .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private var monthLabels: some View {
+        ZStack(alignment: .leading) {
+            ForEach(Array(data.weeks.reversed().enumerated()), id: \.offset) { weekIndex, week in
+                // Check if this week contains the 1st day of a month
+                if let monthStart = week.days.first(where: { Calendar.current.component(.day, from: $0.date) == 1 }) {
+                    let month = Calendar.current.component(.month, from: monthStart.date)
+
+                    // Show Oct, Nov, Dec, Jan at their actual positions
+                    let monthsToShow: Set<Int> = [1, 10, 11, 12] // Jan, Oct, Nov, Dec
+
+                    if monthsToShow.contains(month) {
+                        Text(monthName(from: monthStart.date))
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundColor(.white.opacity(0.6))
+                            .offset(x: CGFloat(weekIndex) * (squareSize + squareSpacing))
                     }
                 }
             }
         }
-        .overlay(alignment: .topLeading) {
-            if let day = hoveredDay {
-                tooltipView(for: day)
-                    .position(tooltipPosition)
-            }
-        }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 16)
+    }
+
+    private func monthName(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM"
+        return formatter.string(from: date)
     }
 
     @ViewBuilder
