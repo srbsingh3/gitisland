@@ -128,6 +128,7 @@ struct NotchView: View {
                     .frame(width: 14, height: 14)
                     .foregroundColor(.white)
                     .opacity(viewModel.status == .opened ? 1 : 0)
+                    .padding(.leading, 8)
 
                 Spacer()
             }
