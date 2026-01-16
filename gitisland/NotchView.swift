@@ -118,23 +118,21 @@ struct NotchView: View {
     @ViewBuilder
     private var notchLayout: some View {
         VStack(alignment: .center, spacing: 12) {
-            // Header row
+            // Header row - keep structure consistent for smooth animation
             HStack(spacing: 8) {
-                if viewModel.status == .opened {
-                    // GitHub icon - top left when opened
-                    Image(systemName: "chevron.left.forwardslash.chevron.right")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
+                // GitHub icon - always in layout, only visible when opened
+                Image("github-icon")
+                    .resizable()
+                    .renderingMode(.template)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 14, height: 14)
+                    .foregroundColor(.white)
+                    .opacity(viewModel.status == .opened ? 1 : 0)
 
-                    Spacer()
-                } else {
-                    // Empty space for closed state - centered
-                    Spacer()
-                        .frame(width: closedNotchSize.width - 20)
-                }
+                Spacer()
             }
             .frame(height: max(24, closedNotchSize.height))
-            .frame(maxWidth: viewModel.status == .opened ? .infinity : nil)
+            .frame(width: viewModel.status == .opened ? notchSize.width - 24 : closedNotchSize.width - 20)
 
             // Content when opened
             if viewModel.status == .opened {
