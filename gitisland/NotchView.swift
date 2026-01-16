@@ -15,6 +15,7 @@ private let cornerRadiusInsets = (
 
 struct NotchView: View {
     @ObservedObject var viewModel: NotchViewModel
+    @StateObject private var githubService = GitHubService()
     @State private var isVisible: Bool = false
     @State private var isHovering: Bool = false
 
@@ -138,13 +139,28 @@ struct NotchView: View {
             // Content when opened
             if viewModel.status == .opened {
                 VStack(spacing: 16) {
-                    Text("Hello from the notch!")
-                        .font(.system(size: 16, weight: .regular))
-                        .foregroundColor(.white)
+                    if githubService.isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.8)
+                    } else if let error = githubService.error {
+                        VStack(spacing: 8) {
+                            Text("Failed to load contributions")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.white.opacity(0.8))
 
-                    Text("Click outside to close")
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundColor(.white.opacity(0.6))
+                            Text(errorMessage(for: error))
+                                .font(.system(size: 10, weight: .regular))
+                                .foregroundColor(.white.opacity(0.5))
+                                .multilineTextAlignment(.center)
+                        }
+                    } else if let contributionData = githubService.contributionData {
+                        ContributionGraphView(data: contributionData)
+                    } else {
+                        Text("Opening GitHub contributions...")
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
                 }
                 .frame(width: notchSize.width - 24)
                 .transition(
@@ -163,6 +179,10 @@ struct NotchView: View {
         switch newStatus {
         case .opened:
             isVisible = true
+            // Fetch GitHub contributions when notch opens
+            Task {
+                await githubService.fetchContributions(username: "srbsingh3")
+            }
         case .closed:
             guard viewModel.hasPhysicalNotch else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
@@ -170,6 +190,21 @@ struct NotchView: View {
                     isVisible = false
                 }
             }
+        }
+    }
+
+    private func errorMessage(for error: GitHubError) -> String {
+        switch error {
+        case .noToken:
+            return "GitHub token not found. Set GITHUB_TOKEN environment variable or configure in settings."
+        case .invalidURL:
+            return "Invalid API URL"
+        case .networkError:
+            return "Network error occurred"
+        case .invalidResponse:
+            return "Invalid response from GitHub"
+        case .decodingError:
+            return "Failed to parse GitHub data"
         }
     }
 }
