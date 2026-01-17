@@ -7,13 +7,30 @@
 
 import SwiftUI
 
+// Animation state for a single box in the loading animation
+struct BoxAnimationState: Identifiable {
+    let id: UUID
+    let weekIndex: Int
+    let dayIndex: Int
+    var intensity: Double // 0.0 to 1.0, decreases over time for gradient trail
+    var timestamp: Date
+}
+
 struct ContributionGraphView: View {
     let data: ContributionData
     @Binding var hoveredDay: ContributionDay?
     @Binding var tooltipPosition: CGPoint
 
+    // Loading animation state
+    @State private var isAnimating: Bool = true
+    @State private var animatedBoxes: [BoxAnimationState] = []
+    @State private var animationTimer: Timer?
+    @State private var animationStartTime: Date = Date()
+
     private let squareSize: CGFloat = 11
     private let squareSpacing: CGFloat = 3.5
+    private let animationDuration: TimeInterval = 3.0 // 3 seconds
+    private let boxAnimationInterval: TimeInterval = 0.03 // Add new animated box every 30ms
 
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
@@ -22,7 +39,11 @@ struct ContributionGraphView: View {
                 ForEach(data.weeks.indices, id: \.self) { weekIndex in
                     VStack(spacing: squareSpacing) {
                         ForEach(data.weeks[weekIndex].days.indices, id: \.self) { dayIndex in
-                            contributionSquare(for: data.weeks[weekIndex].days[dayIndex])
+                            contributionSquare(
+                                for: data.weeks[weekIndex].days[dayIndex],
+                                weekIndex: weekIndex,
+                                dayIndex: dayIndex
+                            )
                         }
                     }
                 }
@@ -33,6 +54,12 @@ struct ContributionGraphView: View {
                 .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)
+        .onAppear {
+            checkAndStartLoadingAnimation()
+        }
+        .onDisappear {
+            stopAnimation()
+        }
     }
 
     @ViewBuilder
@@ -98,10 +125,13 @@ struct ContributionGraphView: View {
     }
 
     @ViewBuilder
-    private func contributionSquare(for day: ContributionDay) -> some View {
+    private func contributionSquare(for day: ContributionDay, weekIndex: Int, dayIndex: Int) -> some View {
         GeometryReader { geometry in
+            let animationState = animatedBoxes.first(where: { $0.weekIndex == weekIndex && $0.dayIndex == dayIndex })
+            let fillColor = isAnimating ? animatedColor(for: animationState) : Color(hex: day.color)
+
             RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color(hex: day.color))
+                .fill(fillColor)
                 .overlay(
                     RoundedRectangle(cornerRadius: 2.5)
                         .strokeBorder(Color.white.opacity(0.15), lineWidth: hoveredDay?.id == day.id ? 1.5 : 0)
@@ -129,6 +159,123 @@ struct ContributionGraphView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d, yyyy"
         return formatter.string(from: date)
+    }
+
+    // MARK: - Loading Animation
+
+    private func checkAndStartLoadingAnimation() {
+        // Check if this is the first load
+        let hasSeenAnimation = UserDefaults.standard.bool(forKey: "hasSeenContributionLoadingAnimation")
+
+        if !hasSeenAnimation {
+            // Mark as seen for future loads
+            UserDefaults.standard.set(true, forKey: "hasSeenContributionLoadingAnimation")
+            startLoadingAnimation()
+        } else {
+            // Skip animation, show data immediately
+            isAnimating = false
+        }
+    }
+
+    private func startLoadingAnimation() {
+        isAnimating = true
+        animationStartTime = Date()
+
+        // Create a timer that fires frequently to add new animated boxes
+        animationTimer = Timer.scheduledTimer(withTimeInterval: boxAnimationInterval, repeats: true) { _ in
+            updateLoadingAnimation()
+        }
+    }
+
+    private func updateLoadingAnimation() {
+        let elapsed = Date().timeIntervalSince(animationStartTime)
+
+        // Stop animation after duration
+        if elapsed >= animationDuration {
+            stopAnimation()
+            withAnimation(.easeOut(duration: 0.5)) {
+                isAnimating = false
+            }
+            return
+        }
+
+        // Add new random box to animate
+        if let randomWeekIndex = data.weeks.indices.randomElement(),
+           let randomDayIndex = data.weeks[randomWeekIndex].days.indices.randomElement() {
+
+            // Check if this box is already animating
+            let alreadyAnimating = animatedBoxes.contains(where: {
+                $0.weekIndex == randomWeekIndex && $0.dayIndex == randomDayIndex
+            })
+
+            if !alreadyAnimating {
+                let newBox = BoxAnimationState(
+                    id: UUID(),
+                    weekIndex: randomWeekIndex,
+                    dayIndex: randomDayIndex,
+                    intensity: 1.0,
+                    timestamp: Date()
+                )
+                animatedBoxes.append(newBox)
+            }
+        }
+
+        // Update existing animated boxes - fade them out over time
+        let now = Date()
+        animatedBoxes = animatedBoxes.compactMap { box in
+            let timeSinceStart = now.timeIntervalSince(box.timestamp)
+            let fadeOutDuration = 0.8 // Fade out over 800ms for gradient trail
+            let newIntensity = max(0, 1.0 - (timeSinceStart / fadeOutDuration))
+
+            // Remove if fully faded
+            if newIntensity <= 0 {
+                return nil
+            }
+
+            // Update intensity
+            var updatedBox = box
+            updatedBox.intensity = newIntensity
+            return updatedBox
+        }
+    }
+
+    private func stopAnimation() {
+        animationTimer?.invalidate()
+        animationTimer = nil
+        animatedBoxes.removeAll()
+    }
+
+    private func animatedColor(for state: BoxAnimationState?) -> Color {
+        guard let state = state else {
+            // Default empty state color during animation
+            return Color(hex: "#161b22")
+        }
+
+        // Create elegant gradient trail effect using white/grey shades
+        // Start with bright white, fade through light grey to dark grey
+        let intensity = state.intensity
+
+        if intensity > 0.7 {
+            // Bright white phase - very bright
+            let t = (intensity - 0.7) / 0.3 // 0 to 1
+            let brightness = 0.85 + (0.15 * t) // 0.85 to 1.0
+            return Color(white: brightness)
+        } else if intensity > 0.4 {
+            // Light grey phase
+            let t = (intensity - 0.4) / 0.3 // 0 to 1
+            let brightness = 0.5 + (0.35 * t) // 0.5 to 0.85
+            return Color(white: brightness)
+        } else if intensity > 0.15 {
+            // Medium grey phase
+            let t = (intensity - 0.15) / 0.25 // 0 to 1
+            let brightness = 0.25 + (0.25 * t) // 0.25 to 0.5
+            return Color(white: brightness)
+        } else {
+            // Fade to dark grey/empty state
+            let t = intensity / 0.15 // 0 to 1
+            let brightness = 0.09 + (0.16 * t) // 0.09 to 0.25
+            return Color(white: brightness)
+        }
     }
 }
 
