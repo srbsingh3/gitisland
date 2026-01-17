@@ -43,12 +43,12 @@ class NotchPanel: NSPanel {
 
         allowsToolTipsWhenApplicationIsInactive = true
 
-        ignoresMouseEvents = true
+        ignoresMouseEvents = false
 
         isReleasedWhenClosed = true
         acceptsMouseMovedEvents = false
     }
 
-    override var canBecomeKey: Bool { true }
+    override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 }
