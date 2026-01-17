@@ -18,6 +18,8 @@ struct NotchView: View {
     @StateObject private var githubService = GitHubService()
     @State private var isVisible: Bool = false
     @State private var isHovering: Bool = false
+    @State private var hoveredDay: ContributionDay?
+    @State private var tooltipPosition: CGPoint = .zero
 
     private var closedNotchSize: CGSize {
         CGSize(
@@ -58,7 +60,7 @@ struct NotchView: View {
     private let closeAnimation = Animation.spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
 
     var body: some View {
-        ZStack(alignment: .top) {
+        ZStack {
             VStack(spacing: 0) {
                 notchLayout
                     .frame(
@@ -102,9 +104,19 @@ struct NotchView: View {
                         }
                     }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+
+            // Tooltip overlay - rendered outside the clipped notch area using global coordinates
+            if let day = hoveredDay {
+                ContributionTooltipView(day: day)
+                    .position(tooltipPosition)
+                    .allowsHitTesting(false)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    .animation(.easeOut(duration: 0.15), value: hoveredDay?.id)
+                    .zIndex(10000)
+            }
         }
         .opacity(isVisible ? 1 : 0)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .preferredColorScheme(.dark)
         .onAppear {
             if !viewModel.hasPhysicalNotch {
@@ -142,8 +154,12 @@ struct NotchView: View {
                         }
                         .padding(.top, 8)
                     } else if let contributionData = githubService.contributionData {
-                        ContributionGraphView(data: contributionData)
-                            .padding(.top, 8)
+                        ContributionGraphView(
+                            data: contributionData,
+                            hoveredDay: $hoveredDay,
+                            tooltipPosition: $tooltipPosition
+                        )
+                        .padding(.top, 8)
                     }
                 }
                 .frame(width: notchSize.width - 24)

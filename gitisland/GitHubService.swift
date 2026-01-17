@@ -96,99 +96,93 @@ class GitHubService: ObservableObject {
 
     private func generateMockData(username: String) -> ContributionData {
         // Real contribution data fetched from https://github.com/srbsingh3
-        // Last 154 days (22 weeks), scraped on 2026-01-17
+        // Last 154 days (22 weeks), fetched on 2026-01-17
+        // Total contributions: 625
         let calendar = Calendar.current
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
 
-        // Actual contribution levels from GitHub (0-4 scale)
-        // Complete data for last 154 days - 50 days with contributions
-        let activityDays: [String: Int] = [
-            "2025-08-24": 4,
-            "2025-08-31": 1,
-            "2025-09-06": 2,
-            "2025-09-07": 1,
-            "2025-09-22": 1,
-            "2025-11-02": 1,
-            "2025-11-03": 1,
-            "2025-11-04": 1,
-            "2025-11-05": 1,
-            "2025-11-11": 1,
-            "2025-11-12": 1,
-            "2025-11-13": 4,
-            "2025-11-14": 1,
-            "2025-11-15": 1,
-            "2025-11-16": 1,
-            "2025-11-17": 1,
-            "2025-11-18": 1,
-            "2025-11-19": 1,
-            "2025-11-22": 1,
-            "2025-11-25": 1,
-            "2025-11-28": 3,
-            "2025-11-29": 1,
-            "2025-11-30": 3,
-            "2025-12-02": 2,
-            "2025-12-21": 2,
-            "2025-12-22": 2,
-            "2025-12-23": 2,
-            "2025-12-24": 1,
-            "2025-12-25": 3,
-            "2025-12-26": 3,
-            "2025-12-27": 3,
-            "2025-12-28": 1,
-            "2025-12-29": 1,
-            "2025-12-31": 1,
-            "2026-01-01": 2,
-            "2026-01-02": 2,
-            "2026-01-03": 1,
-            "2026-01-04": 3,
-            "2026-01-05": 2,
-            "2026-01-06": 2,
-            "2026-01-07": 4,
-            "2026-01-08": 4,
-            "2026-01-09": 3,
-            "2026-01-10": 2,
-            "2026-01-11": 1,
-            "2026-01-12": 1,
-            "2026-01-13": 1,
-            "2026-01-14": 1,
-            "2026-01-15": 3,
-            "2026-01-16": 3,
+        // Actual contribution counts and levels from GitHub
+        let activityDays: [String: (count: Int, level: Int)] = [
+            "2025-08-24": (50, 4),
+            "2025-08-31": (1, 1),
+            "2025-09-06": (13, 2),
+            "2025-09-07": (3, 1),
+            "2025-09-22": (2, 1),
+            "2025-11-02": (3, 1),
+            "2025-11-03": (1, 1),
+            "2025-11-04": (10, 1),
+            "2025-11-05": (5, 1),
+            "2025-11-11": (2, 1),
+            "2025-11-12": (7, 1),
+            "2025-11-13": (32, 4),
+            "2025-11-14": (7, 1),
+            "2025-11-15": (2, 1),
+            "2025-11-16": (2, 1),
+            "2025-11-17": (7, 1),
+            "2025-11-18": (3, 1),
+            "2025-11-19": (4, 1),
+            "2025-11-22": (5, 1),
+            "2025-11-25": (1, 1),
+            "2025-11-28": (21, 3),
+            "2025-11-29": (8, 1),
+            "2025-11-30": (25, 3),
+            "2025-12-02": (14, 2),
+            "2025-12-21": (11, 2),
+            "2025-12-22": (13, 2),
+            "2025-12-23": (12, 2),
+            "2025-12-24": (10, 1),
+            "2025-12-25": (22, 3),
+            "2025-12-26": (21, 3),
+            "2025-12-27": (22, 3),
+            "2025-12-28": (1, 1),
+            "2025-12-29": (3, 1),
+            "2025-12-31": (6, 1),
+            "2026-01-01": (13, 2),
+            "2026-01-02": (12, 2),
+            "2026-01-03": (3, 1),
+            "2026-01-04": (26, 3),
+            "2026-01-05": (13, 2),
+            "2026-01-06": (13, 2),
+            "2026-01-07": (37, 4),
+            "2026-01-08": (40, 4),
+            "2026-01-09": (21, 3),
+            "2026-01-10": (16, 2),
+            "2026-01-11": (10, 1),
+            "2026-01-12": (2, 1),
+            "2026-01-13": (2, 1),
+            "2026-01-14": (9, 1),
+            "2026-01-15": (26, 3),
+            "2026-01-16": (23, 3),
+            "2026-01-17": (10, 1),
         ]
 
         var weeks: [ContributionWeek] = []
         var totalContributions = 0
-        let today = Date()
 
-        // Generate 22 weeks (5 months) of data
-        for weekOffset in (0..<22).reversed() {
+        // Start date: 2025-08-17 (Sunday)
+        guard let startDate = dateFormatter.date(from: "2025-08-17") else {
+            return ContributionData(weeks: [], totalContributions: 0, username: username)
+        }
+
+        // Generate 22 weeks of data, each week from Sunday to Saturday
+        for weekIndex in 0..<22 {
             var days: [ContributionDay] = []
 
-            for dayOffset in 0..<7 {
-                let dayIndex = weekOffset * 7 + dayOffset
-                guard let date = calendar.date(byAdding: .day, value: -dayIndex, to: today) else { continue }
+            for dayOfWeek in 0..<7 { // 0 = Sunday, 6 = Saturday
+                let dayOffset = weekIndex * 7 + dayOfWeek
+                guard let date = calendar.date(byAdding: .day, value: dayOffset, to: startDate) else { continue }
 
-                let dateFormatter = DateFormatter()
-                dateFormatter.dateFormat = "yyyy-MM-dd"
                 let dateString = dateFormatter.string(from: date)
 
-                // Get contribution level for this date
-                let level = activityDays[dateString] ?? 0
-
-                // Estimate count from level (GitHub's 0-4 scale)
-                let count: Int
-                switch level {
-                case 0: count = 0
-                case 1: count = 3
-                case 2: count = 6
-                case 3: count = 10
-                case 4: count = 15
-                default: count = 0
-                }
+                // Get contribution data for this date
+                let (count, level) = activityDays[dateString] ?? (0, 0)
 
                 totalContributions += count
                 days.append(ContributionDay(date: date, count: count, level: level))
             }
 
-            weeks.insert(ContributionWeek(days: days), at: 0)
+            weeks.append(ContributionWeek(days: days))
         }
 
         return ContributionData(weeks: weeks, totalContributions: totalContributions, username: username)
