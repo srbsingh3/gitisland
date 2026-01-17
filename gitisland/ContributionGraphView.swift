@@ -38,26 +38,57 @@ struct ContributionGraphView: View {
     @ViewBuilder
     private var monthLabels: some View {
         ZStack(alignment: .leading) {
-            ForEach(data.weeks.indices, id: \.self) { weekIndex in
-                let week = data.weeks[weekIndex]
-                // Check if this week contains the 1st day of a month
-                if let monthStart = week.days.first(where: { Calendar.current.component(.day, from: $0.date) == 1 }) {
-                    let month = Calendar.current.component(.month, from: monthStart.date)
-
-                    // Show Oct, Nov, Dec, Jan at their actual positions
-                    let monthsToShow: Set<Int> = [1, 10, 11, 12] // Jan, Oct, Nov, Dec
-
-                    if monthsToShow.contains(month) {
-                        Text(monthName(from: monthStart.date))
-                            .font(.system(size: 11, weight: .regular))
-                            .foregroundColor(.white.opacity(0.6))
-                            .offset(x: CGFloat(weekIndex) * (squareSize + squareSpacing))
-                    }
-                }
+            ForEach(getMonthLabelPositions(), id: \.weekIndex) { position in
+                Text(position.monthName)
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundColor(.white.opacity(0.6))
+                    .offset(x: CGFloat(position.weekIndex) * (squareSize + squareSpacing))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 16)
+    }
+
+    private struct MonthLabelPosition {
+        let weekIndex: Int
+        let monthName: String
+    }
+
+    private func getMonthLabelPositions() -> [MonthLabelPosition] {
+        var positions: [MonthLabelPosition] = []
+        var labeledMonths: Set<Int> = []
+
+        for weekIndex in data.weeks.indices {
+            let week = data.weeks[weekIndex]
+
+            // A full week should have 7 days
+            guard week.days.count == 7 else { continue }
+
+            // Check if all days in this week belong to the same month
+            let months = Set(week.days.map { Calendar.current.component(.month, from: $0.date) })
+
+            // If this is a full week for a single month
+            if months.count == 1, let month = months.first {
+                // Skip August (month 8) to prevent overflow
+                guard month != 8 else { continue }
+
+                // Only add label if we haven't labeled this month yet
+                if !labeledMonths.contains(month) {
+                    labeledMonths.insert(month)
+                    // Shift by one column to the right
+                    let shiftedWeekIndex = weekIndex + 1
+                    // Make sure we don't go out of bounds
+                    if shiftedWeekIndex < data.weeks.count {
+                        positions.append(MonthLabelPosition(
+                            weekIndex: shiftedWeekIndex,
+                            monthName: monthName(from: week.days[0].date)
+                        ))
+                    }
+                }
+            }
+        }
+
+        return positions
     }
 
     private func monthName(from date: Date) -> String {
