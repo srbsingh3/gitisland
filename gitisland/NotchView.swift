@@ -20,6 +20,7 @@ struct NotchView: View {
     @State private var isHovering: Bool = false
     @State private var hoveredDay: ContributionDay?
     @State private var tooltipPosition: CGPoint = .zero
+    @State private var shadowOpacity: Double = 0.0
 
     private var closedNotchSize: CGSize {
         CGSize(
@@ -83,7 +84,7 @@ struct NotchView: View {
                             .padding(.horizontal, topCornerRadius)
                     }
                     .shadow(
-                        color: (viewModel.status == .opened || isHovering) ? .black.opacity(0.7) : .clear,
+                        color: .black.opacity(shadowOpacity),
                         radius: 6
                     )
                     .frame(
@@ -96,6 +97,11 @@ struct NotchView: View {
                     .onHover { hovering in
                         withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) {
                             isHovering = hovering
+                            if hovering && viewModel.status == .closed {
+                                shadowOpacity = 0.7
+                            } else if !hovering && viewModel.status == .closed {
+                                shadowOpacity = 0.0
+                            }
                         }
                     }
                     .onTapGesture {
@@ -117,6 +123,7 @@ struct NotchView: View {
             }
         }
         .opacity(isVisible ? 1 : 0)
+        .animation(.easeInOut(duration: 0.2), value: isVisible)
         .preferredColorScheme(.dark)
         .onAppear {
             if !viewModel.hasPhysicalNotch {
@@ -179,15 +186,23 @@ struct NotchView: View {
         switch newStatus {
         case .opened:
             isVisible = true
+            withAnimation(openAnimation) {
+                shadowOpacity = 0.7
+            }
             // Fetch GitHub contributions when notch opens
             Task {
                 await githubService.fetchContributions(username: "srbsingh3")
             }
         case .closed:
+            withAnimation(closeAnimation) {
+                shadowOpacity = 0.0
+            }
             guard viewModel.hasPhysicalNotch else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 if viewModel.status == .closed {
-                    isVisible = false
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        isVisible = false
+                    }
                 }
             }
         }
