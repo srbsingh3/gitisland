@@ -28,9 +28,9 @@ SCREEN_HEIGHT=$(echo $SCREEN_BOUNDS | cut -d',' -f4 | tr -d ' ')
 NOTCH_X=$((SCREEN_WIDTH / 2))
 NOTCH_Y=15  # Just below the very top, in the notch area
 
-# Click outside position (near bottom of screen)
-OUTSIDE_X=$((SCREEN_WIDTH / 2))
-OUTSIDE_Y=$((SCREEN_HEIGHT - 100))
+# Click outside position (menu bar area, far left - avoids "Show Desktop" trigger)
+OUTSIDE_X=50
+OUTSIDE_Y=12
 
 echo "Screen size (points): ${SCREEN_WIDTH}x${SCREEN_HEIGHT}"
 echo "Notch position: ${NOTCH_X}, ${NOTCH_Y}"
@@ -59,7 +59,9 @@ sleep 4
 
 # Move away and click outside to close
 echo "Moving away and clicking to close..."
-cliclick m:$OUTSIDE_X,$OUTSIDE_Y c:$OUTSIDE_X,$OUTSIDE_Y
+cliclick m:$OUTSIDE_X,$OUTSIDE_Y
+sleep 0.1
+cliclick c:.
 
 # Wait 2 seconds
 echo "Waiting 2 seconds..."
