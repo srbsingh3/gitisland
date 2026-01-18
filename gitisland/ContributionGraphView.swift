@@ -29,7 +29,7 @@ struct ContributionGraphView: View {
 
     private let squareSize: CGFloat = 11
     private let squareSpacing: CGFloat = 3.5
-    private let animationDuration: TimeInterval = 2.0 // 2 seconds
+    private let animationDuration: TimeInterval = 1.5 // 1.5 seconds
     private let boxAnimationInterval: TimeInterval = 0.03 // Add new animated box every 30ms
 
     var body: some View {
