@@ -1,6 +1,4 @@
-<div align="center">
-
-# GitIsland
+# 🏝️ Git-Island
 
 **Your GitHub contributions in macOS Dynamic Island**
 
@@ -10,11 +8,7 @@
 
 A minimal menu bar app that displays your GitHub contribution graph in a sleek, expandable notch overlay.
 
-<br>
-
 https://github.com/user-attachments/assets/09ea2030-1044-49af-9b54-e7f407725bf4
-
-</div>
 
 <br>
 
